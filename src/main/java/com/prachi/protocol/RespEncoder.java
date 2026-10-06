@@ -36,4 +36,8 @@ public class RespEncoder {
 
         return response.toString();
     }
+
+    public String encodeInteger(long value) {
+        return ":" + value + "\r\n";
+    }
 }

@@ -81,4 +81,20 @@ public class RespEncoderTest {
                 result
         );
     }
+
+    @Test
+    void shouldEncodeInteger() {
+
+        RespEncoder encoder = new RespEncoder();
+
+        assertEquals(
+                ":1\r\n",
+                encoder.encodeInteger(1)
+        );
+
+        assertEquals(
+                ":0\r\n",
+                encoder.encodeInteger(0)
+        );
+    }
 }

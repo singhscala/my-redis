@@ -14,10 +14,6 @@ public class RedisModel {
         return value;
     }
 
-    public long getExpiryTime(){
-        return expiryTime;
-    }
-
     public boolean isExpire(){
         return expiryTime != -1
                 && System.currentTimeMillis() >= expiryTime;

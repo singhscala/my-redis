@@ -12,21 +12,6 @@ public class CommandHandler {
         this.redisStore = redisStore;
     }
 
-//    public String handle(String command) {
-//
-//        String[] parts = command.trim().split("\\s+");
-//
-//        String operation = parts[0].toUpperCase();
-//
-//        return switch (operation) {
-//            case "SET" -> handleSet(parts);
-//            case "GET" -> handleGet(parts);
-//            case "DEL" -> handleDelete(parts);
-//            case "EXISTS" -> handleExists(parts);
-//            default -> "ERR unknown command";
-//        };
-//    }
-
     public String handle(List<String> args) {
 
         if (args.isEmpty()) {
@@ -34,7 +19,6 @@ public class CommandHandler {
         }
 
         String[] parts = args.toArray(new String[0]);
-
         String operation = parts[0].toUpperCase();
 
         return switch (operation) {
@@ -103,7 +87,7 @@ public class CommandHandler {
         String value = redisStore.get(key);
 
         if (value == null) {
-            return "(nil)";
+            return null;
         }
 
         return value;

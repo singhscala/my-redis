@@ -71,14 +71,20 @@ public class RedisServer {
 
                 String encodedResponse;
 
-                if (args.getFirst().equalsIgnoreCase("GET")) {
+                if (args.get(0).equalsIgnoreCase("GET")) {
                     encodedResponse = respEncoder.encodeBulkString(response);
-                } else {
+
+                } else if (args.get(0).equalsIgnoreCase("EXISTS") || args.get(0).equalsIgnoreCase("DEL")) {
+                    encodedResponse = respEncoder.encodeInteger(Long.parseLong(response));
+
+                } else if (response != null && response.startsWith("ERR")) {
+                    encodedResponse = respEncoder.encodeError(response);
+
+                }else {
                     encodedResponse = respEncoder.encodeSimpleString(response);
                 }
 
                 outputStream.write(encodedResponse.getBytes(StandardCharsets.UTF_8));
-
                 outputStream.flush();
             }
         } catch (IOException e) {

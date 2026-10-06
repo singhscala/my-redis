@@ -99,10 +99,7 @@ public class RespParser {
         return line.toString();
     }
 
-    private String readBytes(
-            InputStream inputStream,
-            int length
-    ) throws IOException {
+    private String readBytes(InputStream inputStream, int length) throws IOException {
 
         byte[] buffer = new byte[length];
 
@@ -136,15 +133,13 @@ public class RespParser {
             throw new IOException("Expected bulk string");
         }
 
-        int length =
-                Integer.parseInt(header.substring(1));
+        int length = Integer.parseInt(header.substring(1));
 
         if (length == -1) {
             return null;
         }
 
-        String value =
-                readBytes(inputStream, length);
+        String value = readBytes(inputStream, length);
 
         readLine(inputStream);
 
@@ -160,8 +155,7 @@ public class RespParser {
             throw new IOException("Expected RESP array");
         }
 
-        int elementCount =
-                Integer.parseInt(header.substring(1));
+        int elementCount = Integer.parseInt(header.substring(1));
 
         List<String> result = new ArrayList<>();
 
@@ -173,5 +167,46 @@ public class RespParser {
         }
 
         return result;
+    }
+
+    public long readInteger(InputStream inputStream) throws IOException {
+
+        String value = readLine(inputStream);
+
+        return Long.parseLong(value);
+    }
+
+    public String readResponse(InputStream inputStream) throws IOException {
+
+        int firstByte = inputStream.read();
+
+        if (firstByte == -1) {
+            throw new IOException("Connection closed");}
+
+        switch (firstByte) {
+
+            case '+':
+                return readLine(inputStream);
+
+            case '-':
+                return "ERR " + readLine(inputStream);
+
+            case ':':
+                return String.valueOf(readInteger(inputStream));
+
+            case '$':
+                int length = Integer.parseInt(readLine(inputStream));
+
+                if (length == -1) {
+                    return null;
+                }
+
+                String value = readBytes(inputStream, length);
+                readLine(inputStream);
+                return value;
+
+            default:
+                throw new IOException("Unsupported RESP response");
+        }
     }
 }

@@ -15,13 +15,17 @@ public class CommandHandlerTest {
     void shouldSetAndGetValue() {
 
         assertEquals(
-                "Ok",
-                handler.handle("SET name Prachi")
+                "OK",
+                handler.handle(
+                        List.of("SET", "name", "Prachi")
+                )
         );
 
         assertEquals(
                 "Prachi",
-                handler.handle("GET name")
+                handler.handle(
+                        List.of("GET", "name")
+                )
         );
     }
 
@@ -29,24 +33,32 @@ public class CommandHandlerTest {
     void shouldReturnNilForMissingKey() {
 
         assertEquals(
-                "(nil)",
-                handler.handle("GET name")
+                null,
+                handler.handle(
+                        List.of("GET", "name")
+                )
         );
     }
 
     @Test
     void shouldDeleteKey() {
 
-        handler.handle("SET name Prachi");
+        handler.handle(
+                List.of("SET", "name", "Prachi")
+        );
 
         assertEquals(
                 "1",
-                handler.handle("DEL name")
+                handler.handle(
+                        List.of("DEL", "name")
+                )
         );
 
         assertEquals(
                 "(nil)",
-                handler.handle("GET name")
+                handler.handle(
+                        List.of("GET", "name")
+                )
         );
     }
 
@@ -55,14 +67,20 @@ public class CommandHandlerTest {
 
         assertEquals(
                 "0",
-                handler.handle("EXISTS name")
+                handler.handle(
+                        List.of("EXISTS", "name")
+                )
         );
 
-        handler.handle("SET name Prachi");
+        handler.handle(
+                List.of("SET", "name", "Prachi")
+        );
 
         assertEquals(
                 "1",
-                handler.handle("EXISTS name")
+                handler.handle(
+                        List.of("EXISTS", "name")
+                )
         );
     }
 
@@ -71,45 +89,62 @@ public class CommandHandlerTest {
 
         assertEquals(
                 "OK",
-                handler.handle("SET session abc123 EX 1")
+                handler.handle(
+                        List.of(
+                                "SET",
+                                "session",
+                                "abc123",
+                                "EX",
+                                "1"
+                        )
+                )
         );
 
         assertEquals(
                 "abc123",
-                handler.handle("GET session")
+                handler.handle(
+                        List.of("GET", "session")
+                )
         );
 
         Thread.sleep(1100);
 
         assertEquals(
                 "(nil)",
-                handler.handle("GET session")
+                handler.handle(
+                        List.of("GET", "session")
+                )
         );
     }
 
     @Test
-    void shouldHandleRespCommand() {
+    void shouldHandleEmptyCommand() {
 
-        String result =
-                handler.handle(
-                        List.of("SET", "name", "prachi")
-                );
-
-        assertEquals("OK", result);
+        assertEquals(
+                "ERR empty command",
+                handler.handle(List.of())
+        );
     }
 
     @Test
-    void shouldGetValueFromRespCommand() {
+    void shouldHandleUnknownCommand() {
 
-        handler.handle(
-                List.of("SET", "name", "prachi")
-        );
-
-        String result =
+        assertEquals(
+                "ERR unknown command",
                 handler.handle(
-                        List.of("GET", "name")
-                );
+                        List.of("UNKNOWN")
+                )
+        );
+    }
 
-        assertEquals("prachi", result);
+    @Test
+    void shouldHandleWrongArguments() {
+
+        assertEquals(
+                "ERR wrong number of arguments",
+                handler.handle(
+                        List.of("GET")
+                )
+        );
     }
 }
