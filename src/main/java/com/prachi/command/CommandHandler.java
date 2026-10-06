@@ -2,6 +2,8 @@ package com.prachi.command;
 
 import com.prachi.store.RedisStore;
 
+import java.util.List;
+
 public class CommandHandler {
 
     private final RedisStore redisStore;
@@ -10,9 +12,28 @@ public class CommandHandler {
         this.redisStore = redisStore;
     }
 
-    public String handle(String command) {
+//    public String handle(String command) {
+//
+//        String[] parts = command.trim().split("\\s+");
+//
+//        String operation = parts[0].toUpperCase();
+//
+//        return switch (operation) {
+//            case "SET" -> handleSet(parts);
+//            case "GET" -> handleGet(parts);
+//            case "DEL" -> handleDelete(parts);
+//            case "EXISTS" -> handleExists(parts);
+//            default -> "ERR unknown command";
+//        };
+//    }
 
-        String[] parts = command.trim().split("\\s+");
+    public String handle(List<String> args) {
+
+        if (args.isEmpty()) {
+            return "ERR empty command";
+        }
+
+        String[] parts = args.toArray(new String[0]);
 
         String operation = parts[0].toUpperCase();
 

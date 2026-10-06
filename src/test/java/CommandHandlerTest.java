@@ -2,15 +2,17 @@ import com.prachi.command.CommandHandler;
 import com.prachi.store.RedisStore;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CommandHandlerTest {
 
+    RedisStore store = new RedisStore();
+    CommandHandler handler = new CommandHandler(store);
+
     @Test
     void shouldSetAndGetValue() {
-
-        RedisStore store = new RedisStore();
-        CommandHandler handler = new CommandHandler(store);
 
         assertEquals(
                 "Ok",
@@ -26,9 +28,6 @@ public class CommandHandlerTest {
     @Test
     void shouldReturnNilForMissingKey() {
 
-        RedisStore store = new RedisStore();
-        CommandHandler handler = new CommandHandler(store);
-
         assertEquals(
                 "(nil)",
                 handler.handle("GET name")
@@ -37,9 +36,6 @@ public class CommandHandlerTest {
 
     @Test
     void shouldDeleteKey() {
-
-        RedisStore store = new RedisStore();
-        CommandHandler handler = new CommandHandler(store);
 
         handler.handle("SET name Prachi");
 
@@ -57,9 +53,6 @@ public class CommandHandlerTest {
     @Test
     void shouldCheckKeyExistence() {
 
-        RedisStore store = new RedisStore();
-        CommandHandler handler = new CommandHandler(store);
-
         assertEquals(
                 "0",
                 handler.handle("EXISTS name")
@@ -75,9 +68,6 @@ public class CommandHandlerTest {
 
     @Test
     void shouldExpireKey() throws InterruptedException {
-
-        RedisStore store = new RedisStore();
-        CommandHandler handler = new CommandHandler(store);
 
         assertEquals(
                 "OK",
@@ -95,5 +85,31 @@ public class CommandHandlerTest {
                 "(nil)",
                 handler.handle("GET session")
         );
+    }
+
+    @Test
+    void shouldHandleRespCommand() {
+
+        String result =
+                handler.handle(
+                        List.of("SET", "name", "prachi")
+                );
+
+        assertEquals("OK", result);
+    }
+
+    @Test
+    void shouldGetValueFromRespCommand() {
+
+        handler.handle(
+                List.of("SET", "name", "prachi")
+        );
+
+        String result =
+                handler.handle(
+                        List.of("GET", "name")
+                );
+
+        assertEquals("prachi", result);
     }
 }

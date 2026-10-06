@@ -1,14 +1,15 @@
 package com.prachi.server;
 
 import com.prachi.command.CommandHandler;
+import com.prachi.protocol.RespEncoder;
+import com.prachi.protocol.RespParser;
 import com.prachi.store.RedisStore;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -55,22 +56,39 @@ public class RedisServer {
         }
     }
 
-    public static void handleClient(Socket socket, CommandHandler commandHandler){
-        try{
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter printWriter = new PrintWriter(socket.getOutputStream(), true);
+    public static void handleClient(Socket socket, CommandHandler commandHandler) {
+        try {
 
-            String command;
-            while((command = bufferedReader.readLine())!=null){
-                String response = commandHandler.handle(command);
-                printWriter.println(response);
+            InputStream inputStream = socket.getInputStream();
+            OutputStream outputStream = socket.getOutputStream();
+            RespParser respParser = new RespParser();
+            RespEncoder respEncoder = new RespEncoder();
+
+            while (true) {
+
+                List<String> args = respParser.readArray(inputStream);
+                String response = commandHandler.handle(args);
+
+                String encodedResponse;
+
+                if (args.getFirst().equalsIgnoreCase("GET")) {
+                    encodedResponse = respEncoder.encodeBulkString(response);
+                } else {
+                    encodedResponse = respEncoder.encodeSimpleString(response);
+                }
+
+                outputStream.write(encodedResponse.getBytes(StandardCharsets.UTF_8));
+
+                outputStream.flush();
             }
-        }catch (IOException ioException){
-            ioException.printStackTrace();
-        }finally {
+        } catch (IOException e) {
+            System.out.println("Client disconnected");
+
+        } finally {
             try {
                 socket.close();
-            }catch (IOException ignored){}
+            } catch (IOException ignored) {
+            }
         }
     }
 }
