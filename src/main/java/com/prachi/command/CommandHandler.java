@@ -1,5 +1,8 @@
 package com.prachi.command;
 
+import com.prachi.exception.RedisErrorCode;
+import com.prachi.exception.RedisException;
+import com.prachi.model.RedisResponse;
 import com.prachi.store.RedisStore;
 
 import java.util.List;
@@ -12,25 +15,37 @@ public class CommandHandler {
         this.redisStore = redisStore;
     }
 
-    public String handle(List<String> args) {
+    public RedisResponse handle(List<String> args) {
 
-        if (args.isEmpty()) {
-            return "ERR empty command";
+        try {
+            if (args == null || args.isEmpty()) {
+                throw new RedisException(RedisErrorCode.EMPTY_COMMAND);
+            }
+
+            String[] parts = args.toArray(new String[0]);
+            String operation = parts[0].toUpperCase();
+
+            return switch (operation) {
+                case "SET" -> handleSet(parts);
+                case "GET" -> handleGet(parts);
+                case "DEL" -> handleDelete(parts);
+                case "EXISTS" -> handleExists(parts);
+                case "HSET" -> handleHSet(parts);
+                case "HGET" -> handleHGet(parts);
+                case "HGETALL" -> handleHGetAll(parts);
+
+                default -> throw new RedisException(
+                        RedisErrorCode.UNKNOWN_COMMAND);
+            };
+
+        } catch (RedisException e) {
+            return RedisResponse.error(
+                    e.getError().getErrorCode() + " " + e.getMessage()
+            );
         }
-
-        String[] parts = args.toArray(new String[0]);
-        String operation = parts[0].toUpperCase();
-
-        return switch (operation) {
-            case "SET" -> handleSet(parts);
-            case "GET" -> handleGet(parts);
-            case "DEL" -> handleDelete(parts);
-            case "EXISTS" -> handleExists(parts);
-            default -> "ERR unknown command";
-        };
     }
 
-    private String handleSet(String[] parts) {
+    private RedisResponse handleSet(String[] parts) {
 
         if (parts.length == 3) {
 
@@ -39,47 +54,38 @@ public class CommandHandler {
 
             redisStore.set(key, value);
 
-            return "OK";
+            return RedisResponse.simpleString("OK");
         }
 
-        if (parts.length == 5
-                && parts[3].equalsIgnoreCase("EX")) {
+        if (parts.length == 5 && parts[3].equalsIgnoreCase("EX")) {
 
             String key = parts[1];
             String value = parts[2];
+            long seconds;
 
             try {
-
-                long seconds = Long.parseLong(parts[4]);
-
-                if (seconds <= 0) {
-                    return "ERR invalid expiration";
-                }
-
-                long expiryTime =
-                        System.currentTimeMillis()
-                                + seconds * 1000;
-
-                redisStore.set(
-                        key,
-                        value,
-                        expiryTime
-                );
-
-                return "OK";
-
+                seconds = Long.parseLong(parts[4]);
             } catch (NumberFormatException e) {
-
-                return "ERR invalid expiration";
+                throw new RedisException(RedisErrorCode.INVALID_TTL);
             }
+
+            if (seconds <= 0) {
+                throw new RedisException(RedisErrorCode.INVALID_TTL);
+            }
+
+            long expiryTime = System.currentTimeMillis() + seconds * 1000;
+
+            redisStore.set(key, value, expiryTime);
+
+            return RedisResponse.simpleString("OK");
         }
 
-        return "ERR wrong number of arguments";
+        throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
     }
 
-    public String handleGet(String[] parts){
-        if(parts.length!=2){
-            return "ERR wrong number of arguments";
+    public RedisResponse handleGet(String[] parts){
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
         String key = parts[1];
@@ -90,31 +96,63 @@ public class CommandHandler {
             return null;
         }
 
-        return value;
+        return RedisResponse.bulkString(value);
     }
 
-    public String handleDelete(String[] parts){
-        if(parts.length!=2){
-            return "ERR wrong number of arguments";
+    public RedisResponse handleDelete(String[] parts){
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
         String key = parts[1];
 
         if (!redisStore.exists(key)) {
-            return "0";
+            return RedisResponse.integer(0);
         }
 
         redisStore.delete(key);
-        return "1";
+        return RedisResponse.integer(1);
     }
 
-    public String handleExists(String[] parts){
-        if(parts.length!=2){
-            return "ERR wrong number of arguments";
+    public RedisResponse handleExists(String[] parts){
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
         String key = parts[1];
 
-        return redisStore.exists(key) ? "1" : "0";
+        return redisStore.exists(key) ? RedisResponse.integer(1) : RedisResponse.integer(0);
+    }
+
+    private RedisResponse handleHSet(String[] parts) {
+        if (parts.length != 4) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        redisStore.hset(parts[1], parts[2], parts[3]);
+        return RedisResponse.integer(1);
+    }
+
+    private RedisResponse handleHGet(String[] parts) {
+        if (parts.length != 3) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        return RedisResponse.bulkString(redisStore.hget(parts[1], parts[2]));
+    }
+
+    private RedisResponse handleHGetAll(String[] parts) {
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        List<String> result = new java.util.ArrayList<>();
+
+        redisStore.hgetAll(parts[1]).forEach((field, value) -> {
+            result.add(field);
+            result.add(value);
+        });
+
+        return RedisResponse.array(result);
     }
 }

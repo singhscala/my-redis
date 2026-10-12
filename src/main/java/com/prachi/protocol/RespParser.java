@@ -23,8 +23,7 @@ public class RespParser {
 
         int firstLineEnd = input.indexOf("\r\n");
 
-        int elementCount =
-                Integer.parseInt(input.substring(1, firstLineEnd));
+        int elementCount = Integer.parseInt(input.substring(1, firstLineEnd));
 
         List<String> result = new ArrayList<>();
 
@@ -185,14 +184,26 @@ public class RespParser {
 
         switch (firstByte) {
 
-            case '+':
+            case '+', '-':
                 return readLine(inputStream);
-
-            case '-':
-                return "ERR " + readLine(inputStream);
 
             case ':':
                 return String.valueOf(readInteger(inputStream));
+
+            case '*':
+                int count = Integer.parseInt(readLine(inputStream));
+
+                if (count == -1) {
+                    return null;
+                }
+
+                List<String> values = new ArrayList<>();
+
+                for (int i = 0; i < count; i++) {
+                    values.add(readResponse(inputStream));
+                }
+
+                return String.join("\n", values);
 
             case '$':
                 int length = Integer.parseInt(readLine(inputStream));

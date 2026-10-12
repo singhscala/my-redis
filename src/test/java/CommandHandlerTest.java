@@ -147,4 +147,17 @@ public class CommandHandlerTest {
                 )
         );
     }
+
+    @Test
+    void shouldSetAndGetHashField() {
+        assertEquals(
+                "1",
+                handler.handle(List.of("HSET", "user:1", "name", "Prachi"))
+        );
+
+        assertEquals(
+                "Prachi",
+                handler.handle(List.of("HGET", "user:1", "name"))
+        );
+    }
 }

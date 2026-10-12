@@ -1,6 +1,7 @@
 import com.prachi.store.RedisStore;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -116,5 +117,42 @@ public class RedisStoreTest {
         store.removeExpiredKeys();
 
         assertNull(store.get("session"));
+    }
+
+    @Test
+    void shouldStoreHashFields() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user:1", "name", "Prachi");
+        store.hset("user:1", "city", "Noida");
+
+        assertEquals("Prachi",
+                store.hget("user:1", "name"));
+
+        assertEquals("Noida",
+                store.hget("user:1", "city"));
+
+        assertNull(store.hget("user:1", "age"));
+    }
+
+    @Test
+    void shouldRetrieveAllHashFields() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user:1", "name", "Prachi");
+        store.hset("user:1", "city", "Noida");
+
+        Map<String, String> result = store.hgetAll("user:1");
+
+        assertEquals(2, result.size());
+        assertEquals("Prachi", result.get("name"));
+        assertEquals("Noida", result.get("city"));
+    }
+
+    @Test
+    void shouldReturnEmptyMapForMissingHash() {
+        RedisStore store = new RedisStore();
+
+        assertTrue(store.hgetAll("unknown").isEmpty());
     }
 }

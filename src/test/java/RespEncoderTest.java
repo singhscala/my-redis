@@ -1,3 +1,4 @@
+import com.prachi.model.RedisResponse;
 import com.prachi.protocol.RespEncoder;
 import org.junit.jupiter.api.Test;
 
@@ -95,6 +96,25 @@ public class RespEncoderTest {
         assertEquals(
                 ":0\r\n",
                 encoder.encodeInteger(0)
+        );
+    }
+
+
+    @Test
+    void shouldEncodeHashArrayResponse() {
+        RespEncoder encoder = new RespEncoder();
+
+        RedisResponse response = RedisResponse.array(
+                List.of("name", "Prachi", "city", "Noida")
+        );
+
+        assertEquals(
+                "*4\r\n"
+                        + "$4\r\nname\r\n"
+                        + "$6\r\nPrachi\r\n"
+                        + "$4\r\ncity\r\n"
+                        + "$5\r\nNoida\r\n",
+                encoder.encode(response)
         );
     }
 }

@@ -1,8 +1,35 @@
 package com.prachi.protocol;
 
+import com.prachi.model.RedisResponse;
+
 import java.util.List;
 
 public class RespEncoder {
+
+    public String encode(RedisResponse response) {
+        if (response == null) {
+            return "$-1\r\n";
+        }
+
+        Object value = response.getValue();
+
+        return switch (response.getType()) {
+            case SIMPLE_STRING ->
+                    encodeSimpleString((String) value);
+
+            case ERROR ->
+                    encodeError((String) value);
+
+            case INTEGER ->
+                    encodeInteger((Long) value);
+
+            case BULK_STRING ->
+                    encodeBulkString((String) value);
+
+            case ARRAY ->
+                    encodeArray((List<String>) value);
+        };
+    }
 
     public String encodeSimpleString(String value) {
         return "+" + value + "\r\n";

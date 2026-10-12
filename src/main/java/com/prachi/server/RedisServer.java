@@ -1,6 +1,9 @@
 package com.prachi.server;
 
 import com.prachi.command.CommandHandler;
+import com.prachi.exception.RedisErrorCode;
+import com.prachi.exception.RedisException;
+import com.prachi.model.RedisResponse;
 import com.prachi.protocol.RespEncoder;
 import com.prachi.protocol.RespParser;
 import com.prachi.store.RedisStore;
@@ -21,11 +24,9 @@ public class RedisServer {
         RedisStore store = new RedisStore();
         CommandHandler commandHandler = new CommandHandler(store);
 
-        ExecutorService executorService =
-                Executors.newFixedThreadPool(10);
+        ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-        Thread expirationThread =
-                new Thread(new ExpirationWorker(store));
+        Thread expirationThread = new Thread(new ExpirationWorker(store));
 
         expirationThread.setDaemon(true);
         expirationThread.start();
@@ -56,37 +57,38 @@ public class RedisServer {
         }
     }
 
-    public static void handleClient(Socket socket, CommandHandler commandHandler) {
-        try {
 
+    public static void handleClient(
+            Socket socket,
+            CommandHandler commandHandler) {
+
+        try {
             InputStream inputStream = socket.getInputStream();
             OutputStream outputStream = socket.getOutputStream();
+
             RespParser respParser = new RespParser();
             RespEncoder respEncoder = new RespEncoder();
 
             while (true) {
-
                 List<String> args = respParser.readArray(inputStream);
-                String response = commandHandler.handle(args);
 
-                String encodedResponse;
+                RedisResponse response;
 
-                if (args.get(0).equalsIgnoreCase("GET")) {
-                    encodedResponse = respEncoder.encodeBulkString(response);
+                try {
+                    response = commandHandler.handle(args);
+                } catch (RuntimeException e) {
+                    System.err.println("Unexpected command-processing error: " + e.getMessage());
 
-                } else if (args.get(0).equalsIgnoreCase("EXISTS") || args.get(0).equalsIgnoreCase("DEL")) {
-                    encodedResponse = respEncoder.encodeInteger(Long.parseLong(response));
-
-                } else if (response != null && response.startsWith("ERR")) {
-                    encodedResponse = respEncoder.encodeError(response);
-
-                }else {
-                    encodedResponse = respEncoder.encodeSimpleString(response);
+                    RedisException redisException = new RedisException(RedisErrorCode.INTERNAL_ERROR);
+                    response = RedisResponse.error(redisException.getFormattedMessage());
                 }
+
+                String encodedResponse = respEncoder.encode(response);
 
                 outputStream.write(encodedResponse.getBytes(StandardCharsets.UTF_8));
                 outputStream.flush();
             }
+
         } catch (IOException e) {
             System.out.println("Client disconnected");
 
