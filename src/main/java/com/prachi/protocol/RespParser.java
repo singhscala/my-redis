@@ -167,8 +167,6 @@ public class RespParser {
         return value;
     }
 
-
-
     public List<String> readArray(InputStream inputStream)
             throws IOException {
 
@@ -204,7 +202,6 @@ public class RespParser {
 
         return result;
     }
-
 
     public long readInteger(InputStream inputStream) throws IOException {
 

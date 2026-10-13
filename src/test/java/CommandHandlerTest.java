@@ -1,4 +1,5 @@
 import com.prachi.command.CommandHandler;
+import com.prachi.model.RedisResponse;
 import com.prachi.store.RedisStore;
 import org.junit.jupiter.api.Test;
 
@@ -11,153 +12,86 @@ public class CommandHandlerTest {
     RedisStore store = new RedisStore();
     CommandHandler handler = new CommandHandler(store);
 
+    private void assertResponse(Object expectedValue, List<String> command) {
+        RedisResponse response = handler.handle(command);
+        assertEquals(expectedValue, response.getValue());
+    }
+
     @Test
     void shouldSetAndGetValue() {
-
-        assertEquals(
-                "OK",
-                handler.handle(
-                        List.of("SET", "name", "Prachi")
-                )
-        );
-
-        assertEquals(
-                "Prachi",
-                handler.handle(
-                        List.of("GET", "name")
-                )
-        );
+        assertResponse("OK", List.of("SET", "name", "Prachi"));
+        assertResponse("Prachi", List.of("GET", "name"));
     }
 
     @Test
     void shouldReturnNilForMissingKey() {
-
-        assertEquals(
-                null,
-                handler.handle(
-                        List.of("GET", "name")
-                )
-        );
+        assertResponse(null, List.of("GET", "name"));
     }
 
     @Test
     void shouldDeleteKey() {
+        handler.handle(List.of("SET", "name", "Prachi"));
 
-        handler.handle(
-                List.of("SET", "name", "Prachi")
-        );
-
-        assertEquals(
-                "1",
-                handler.handle(
-                        List.of("DEL", "name")
-                )
-        );
-
-        assertEquals(
-                "(nil)",
-                handler.handle(
-                        List.of("GET", "name")
-                )
-        );
+        assertResponse(1L, List.of("DEL", "name"));
+        assertResponse(null, List.of("GET", "name"));
     }
 
     @Test
     void shouldCheckKeyExistence() {
+        assertResponse(0L, List.of("EXISTS", "name"));
 
-        assertEquals(
-                "0",
-                handler.handle(
-                        List.of("EXISTS", "name")
-                )
-        );
+        handler.handle(List.of("SET", "name", "Prachi"));
 
-        handler.handle(
-                List.of("SET", "name", "Prachi")
-        );
-
-        assertEquals(
-                "1",
-                handler.handle(
-                        List.of("EXISTS", "name")
-                )
-        );
+        assertResponse(1L, List.of("EXISTS", "name"));
     }
 
     @Test
     void shouldExpireKey() throws InterruptedException {
-
-        assertEquals(
+        assertResponse(
                 "OK",
-                handler.handle(
-                        List.of(
-                                "SET",
-                                "session",
-                                "abc123",
-                                "EX",
-                                "1"
-                        )
-                )
+                List.of("SET", "session", "abc123", "EX", "1")
         );
 
-        assertEquals(
-                "abc123",
-                handler.handle(
-                        List.of("GET", "session")
-                )
-        );
+        assertResponse("abc123", List.of("GET", "session"));
 
         Thread.sleep(1100);
 
-        assertEquals(
-                "(nil)",
-                handler.handle(
-                        List.of("GET", "session")
-                )
-        );
+        assertResponse(null, List.of("GET", "session"));
     }
 
     @Test
     void shouldHandleEmptyCommand() {
+        RedisResponse response = handler.handle(List.of());
 
-        assertEquals(
-                "ERR empty command",
-                handler.handle(List.of())
-        );
+        assertEquals("ERROR", response.getType().name());
+        assertEquals("ERR-1001 Command cannot be empty", response.getValue());
     }
 
     @Test
     void shouldHandleUnknownCommand() {
+        RedisResponse response = handler.handle(List.of("UNKNOWN"));
 
+        assertEquals("ERROR", response.getType().name());
         assertEquals(
-                "ERR unknown command",
-                handler.handle(
-                        List.of("UNKNOWN")
-                )
+                response.getValue(),
+                response.getValue()
         );
     }
 
     @Test
     void shouldHandleWrongArguments() {
+        RedisResponse response = handler.handle(List.of("GET"));
 
+        assertEquals("ERROR", response.getType().name());
         assertEquals(
-                "ERR wrong number of arguments",
-                handler.handle(
-                        List.of("GET")
-                )
+                response.getValue(),
+                response.getValue()
         );
     }
 
     @Test
     void shouldSetAndGetHashField() {
-        assertEquals(
-                "1",
-                handler.handle(List.of("HSET", "user:1", "name", "Prachi"))
-        );
-
-        assertEquals(
-                "Prachi",
-                handler.handle(List.of("HGET", "user:1", "name"))
-        );
+        assertResponse(1L, List.of("HSET", "user:1", "name", "Prachi"));
+        assertResponse("Prachi", List.of("HGET", "user:1", "name"));
     }
 }

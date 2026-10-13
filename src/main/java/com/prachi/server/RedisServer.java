@@ -58,9 +58,7 @@ public class RedisServer {
     }
 
 
-    public static void handleClient(
-            Socket socket,
-            CommandHandler commandHandler) {
+    public static void handleClient(Socket socket, CommandHandler commandHandler) {
 
         try {
             InputStream inputStream = socket.getInputStream();
@@ -89,9 +87,10 @@ public class RedisServer {
                 outputStream.flush();
             }
 
+        } catch (RedisException e) {
+            System.err.println("RESP error: " + e.getFormattedMessage());
         } catch (IOException e) {
             System.out.println("Client disconnected");
-
         } finally {
             try {
                 socket.close();

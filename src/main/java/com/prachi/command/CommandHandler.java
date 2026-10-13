@@ -5,6 +5,8 @@ import com.prachi.exception.RedisException;
 import com.prachi.model.RedisResponse;
 import com.prachi.store.RedisStore;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CommandHandler {
@@ -33,6 +35,12 @@ public class CommandHandler {
                 case "HSET" -> handleHSet(parts);
                 case "HGET" -> handleHGet(parts);
                 case "HGETALL" -> handleHGetAll(parts);
+                case "HDEL" -> handleHDel(parts);
+                case "HEXISTS" -> handleHExists(parts);
+                case "HLEN" -> handleHLen(parts);
+                case "HKEYS" -> handleHKeys(parts);
+                case "HVALS" -> handleHVals(parts);
+                case "HMGET" -> handleHMGet(parts);
 
                 default -> throw new RedisException(
                         RedisErrorCode.UNKNOWN_COMMAND);
@@ -88,13 +96,7 @@ public class CommandHandler {
             throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
-        String key = parts[1];
-
-        String value = redisStore.get(key);
-
-        if (value == null) {
-            return null;
-        }
+        String value = redisStore.get(parts[1]);
 
         return RedisResponse.bulkString(value);
     }
@@ -129,8 +131,8 @@ public class CommandHandler {
             throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
-        redisStore.hset(parts[1], parts[2], parts[3]);
-        return RedisResponse.integer(1);
+        int result = redisStore.hset(parts[1], parts[2], parts[3]);
+        return RedisResponse.integer(result);
     }
 
     private RedisResponse handleHGet(String[] parts) {
@@ -138,7 +140,12 @@ public class CommandHandler {
             throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
-        return RedisResponse.bulkString(redisStore.hget(parts[1], parts[2]));
+        String key = parts[1];
+        String field = parts[2];
+
+        String value = redisStore.hget(key, field);
+
+        return RedisResponse.bulkString(value);
     }
 
     private RedisResponse handleHGetAll(String[] parts) {
@@ -146,7 +153,7 @@ public class CommandHandler {
             throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
         }
 
-        List<String> result = new java.util.ArrayList<>();
+        List<String> result = new ArrayList<>();
 
         redisStore.hgetAll(parts[1]).forEach((field, value) -> {
             result.add(field);
@@ -154,5 +161,73 @@ public class CommandHandler {
         });
 
         return RedisResponse.array(result);
+    }
+
+    private RedisResponse handleHDel(String[] parts) {
+        if (parts.length < 3) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        String key = parts[1];
+
+        String[] fields = Arrays.copyOfRange(parts, 2, parts.length);
+
+        int deleted = redisStore.hdel(key, fields);
+
+        return RedisResponse.integer(deleted);
+    }
+
+    private RedisResponse handleHExists(String[] parts) {
+        if (parts.length != 3) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        int exists = redisStore.hexists(parts[1], parts[2]);
+
+        return RedisResponse.integer(exists);
+    }
+
+    private RedisResponse handleHLen(String[] parts) {
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        int length = redisStore.hlen(parts[1]);
+
+        return RedisResponse.integer(length);
+    }
+
+    private RedisResponse handleHKeys(String[] parts) {
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        List<String> fields = redisStore.hkeys(parts[1]);
+
+        return RedisResponse.array(fields);
+    }
+
+    private RedisResponse handleHVals(String[] parts) {
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        List<String> values = redisStore.hvals(parts[1]);
+
+        return RedisResponse.array(values);
+    }
+
+    private RedisResponse handleHMGet(String[] parts) {
+        if (parts.length < 3) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+
+        String key = parts[1];
+
+        String[] fields = Arrays.copyOfRange(parts, 2, parts.length);
+
+        List<String> values = redisStore.hmget(key, fields);
+
+        return RedisResponse.array(values);
     }
 }

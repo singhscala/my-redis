@@ -1,10 +1,14 @@
+import com.prachi.exception.RedisErrorCode;
+import com.prachi.exception.RedisException;
 import com.prachi.store.RedisStore;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -155,4 +159,102 @@ public class RedisStoreTest {
 
         assertTrue(store.hgetAll("unknown").isEmpty());
     }
+
+
+    @Test
+    void shouldReturnOneForNewFieldAndZeroForUpdate() {
+        RedisStore store = new RedisStore();
+
+        assertEquals(1, store.hset("user", "name", "Prachi"));
+        assertEquals(0, store.hset("user", "name", "Singh"));
+
+        assertEquals("Singh", store.hget("user", "name"));
+    }
+
+    @Test
+    void shouldDeleteMultipleHashFields() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user", "name", "Prachi");
+        store.hset("user", "city", "Noida");
+
+        assertEquals(2, store.hdel("user", "name", "city"));
+        assertEquals(0, store.hlen("user"));
+        assertFalse(store.exists("user"));
+    }
+
+    @Test
+    void shouldCheckHashFieldExistence() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user", "name", "Prachi");
+
+        assertEquals(1, store.hexists("user", "name"));
+        assertEquals(0, store.hexists("user", "city"));
+        assertEquals(0, store.hexists("missing", "name"));
+    }
+
+    @Test
+    void shouldReturnHashKeysAndValues() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user", "name", "Prachi");
+        store.hset("user", "city", "Noida");
+
+        assertEquals(
+                java.util.Set.of("name", "city"),
+                new java.util.HashSet<>(store.hkeys("user"))
+        );
+
+        assertEquals(
+                java.util.Set.of("Prachi", "Noida"),
+                new java.util.HashSet<>(store.hvals("user"))
+        );
+    }
+
+    @Test
+    void shouldReturnRequestedHashValuesInOrder() {
+        RedisStore store = new RedisStore();
+
+        store.hset("user", "name", "Prachi");
+        store.hset("user", "city", "Noida");
+
+        assertEquals(
+                Arrays.asList("Noida", null, "Prachi"),
+                store.hmget("user", "city", "age", "name")
+        );
+    }
+
+    @Test
+    void shouldRejectHashOperationOnStringKey() {
+        RedisStore store = new RedisStore();
+        store.set("user:1", "Prachi");
+
+        RedisException exception = assertThrows(
+                RedisException.class,
+                () -> store.hset("user:1", "name", "Prachi")
+        );
+
+        assertEquals(
+                RedisErrorCode.KEY_TYPE_MISMATCH,
+                exception.getError()
+        );
+    }
+
+    @Test
+    void shouldRejectStringOperationOnHashKey() {
+        RedisStore store = new RedisStore();
+        store.hset("user:1", "name", "Prachi");
+
+        RedisException exception = assertThrows(
+                RedisException.class,
+                () -> store.get("user:1")
+        );
+
+        assertEquals(
+                RedisErrorCode.KEY_TYPE_MISMATCH,
+                exception.getError()
+        );
+    }
+
 }
