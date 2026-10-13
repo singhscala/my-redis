@@ -1,7 +1,12 @@
 package com.prachi.protocol;
 
+import com.prachi.exception.RedisErrorCode;
+import com.prachi.exception.RedisException;
+
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -75,27 +80,34 @@ public class RespParser {
         throw new IllegalArgumentException("Invalid RESP null");
     }
 
-    private String readLine(InputStream inputStream) throws IOException {
 
+    private String readLine(InputStream inputStream) throws IOException {
         StringBuilder line = new StringBuilder();
 
-        int currentByte;
+        while (true) {
+            int currentByte = inputStream.read();
 
-        while ((currentByte = inputStream.read()) != -1) {
+            if (currentByte == -1) {
+                throw new EOFException("Incomplete RESP line");
+            }
 
             if (currentByte == '\r') {
-
                 int nextByte = inputStream.read();
 
-                if (nextByte == '\n') {
-                    break;
+                if (nextByte == -1) {
+                    throw new EOFException("Incomplete RESP line ending");
                 }
+
+                if (nextByte != '\n') {
+                    throw new RedisException(
+                            RedisErrorCode.INVALID_RESP_REQUEST);
+                }
+
+                return line.toString();
             }
 
             line.append((char) currentByte);
         }
-
-        return line.toString();
     }
 
     private String readBytes(InputStream inputStream, int length) throws IOException {
@@ -106,44 +118,56 @@ public class RespParser {
 
         while (totalRead < length) {
 
-            int bytesRead =
-                    inputStream.read(
-                            buffer,
-                            totalRead,
-                            length - totalRead
-                    );
+            int bytesRead = inputStream.read(buffer, totalRead, length - totalRead);
 
             if (bytesRead == -1) {
-                throw new IOException("Unexpected end of stream");
+                throw new EOFException("Incomplete RESP bulk string");
             }
 
             totalRead += bytesRead;
         }
 
-        return new String(buffer);
+        return new String(buffer, StandardCharsets.UTF_8);
     }
 
-    public String readBulkString(InputStream inputStream)
-            throws IOException {
+
+    public String readBulkString(InputStream inputStream) throws IOException {
 
         String header = readLine(inputStream);
 
         if (!header.startsWith("$")) {
-            throw new IOException("Expected bulk string");
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
         }
 
-        int length = Integer.parseInt(header.substring(1));
+        int length;
+
+        try {
+            length = Integer.parseInt(header.substring(1));
+        } catch (NumberFormatException e) {
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+        }
 
         if (length == -1) {
             return null;
         }
 
+        if (length < -1) {
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+        }
+
         String value = readBytes(inputStream, length);
 
-        readLine(inputStream);
+        int cr = inputStream.read();
+        int lf = inputStream.read();
+
+        if (cr != '\r' || lf != '\n') {
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+        }
 
         return value;
     }
+
+
 
     public List<String> readArray(InputStream inputStream)
             throws IOException {
@@ -151,22 +175,36 @@ public class RespParser {
         String header = readLine(inputStream);
 
         if (!header.startsWith("*")) {
-            throw new IOException("Expected RESP array");
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
         }
 
-        int elementCount = Integer.parseInt(header.substring(1));
+        int elementCount;
+
+        try {
+            elementCount = Integer.parseInt(header.substring(1));
+        } catch (NumberFormatException e) {
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+        }
+
+        if (elementCount < 0) {
+            throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+        }
 
         List<String> result = new ArrayList<>();
 
         for (int i = 0; i < elementCount; i++) {
-
             String value = readBulkString(inputStream);
+
+            if (value == null) {
+                throw new RedisException(RedisErrorCode.INVALID_RESP_REQUEST);
+            }
 
             result.add(value);
         }
 
         return result;
     }
+
 
     public long readInteger(InputStream inputStream) throws IOException {
 
