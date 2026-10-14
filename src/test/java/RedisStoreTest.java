@@ -4,10 +4,10 @@ import com.prachi.store.RedisStore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -257,4 +257,52 @@ public class RedisStoreTest {
         );
     }
 
+    @Test
+    void shouldPreventSameKeyFromBeingBothStringAndHash() throws Exception {
+        RedisStore store = new RedisStore();
+        String key = "concurrent:user";
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<?> stringTask = executor.submit(() -> {
+                awaitStart(start);
+                store.set(key, "Prachi");
+            });
+
+            Future<?> hashTask = executor.submit(() -> {
+                awaitStart(start);
+                store.hset(key, "name", "Prachi");
+            });
+
+            start.countDown();
+
+            int successCount = 0;
+            int typeMismatchCount = 0;
+
+            for (Future<?> task : List.of(stringTask, hashTask)) {
+                try {
+                    task.get();
+                    successCount++;
+                } catch (java.util.concurrent.ExecutionException e) {
+                    if (e.getCause() instanceof RedisException) {
+                        typeMismatchCount++;
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+
+            assertEquals(1, successCount);
+            assertEquals(1, typeMismatchCount);
+        }
+    }
+
+    private void awaitStart(CountDownLatch start) {
+        try {
+            start.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
 }
