@@ -18,7 +18,8 @@ import java.util.concurrent.Executors;
 
 public class RedisServer {
 
-    private static final int port = 6379;
+    private static final int PORT =
+            Integer.parseInt(System.getenv().getOrDefault("PORT", "6379"));
 
     public static void main(String[] args) {
         RedisStore store = new RedisStore();
@@ -40,8 +41,8 @@ public class RedisServer {
                 })
         );
 
-        try(ServerSocket serverSocket = new ServerSocket(port)){
-            System.out.println("My Redis server started on port " + port);
+        try(ServerSocket serverSocket = new ServerSocket(PORT)){
+            System.out.println("My Redis server started on port " + PORT);
 
             while(true){
                 Socket socket = serverSocket.accept();
@@ -50,8 +51,8 @@ public class RedisServer {
 
                 executorService.submit(()->handleClient(socket, commandHandler));
             }
-        }catch (IOException ioException){
-            ioException.printStackTrace();
+        }catch (IOException e){
+            System.err.println("Could not start or run the Redis server: " + e.getMessage());
         }finally {
             executorService.shutdown();
         }
