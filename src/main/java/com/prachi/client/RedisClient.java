@@ -15,8 +15,9 @@ import java.util.List;
 
 public class RedisClient {
 
-    private static final String HOST = "localhost";
-    private static final int PORT = 6379;
+    private static final String HOST = System.getenv().getOrDefault("REDIS_HOST", "localhost");
+
+    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("REDIS_PORT", "6379"));
 
     public static void main(String[] args) {
 
