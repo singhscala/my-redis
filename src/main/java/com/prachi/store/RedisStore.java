@@ -190,4 +190,24 @@ public class RedisStore {
 
         return values;
     }
+
+    public synchronized String type(String key) {
+        RedisModel value = data.get(key);
+
+        if (value != null) {
+            if (value.getExpiryTime() != -1
+                    && System.currentTimeMillis() >= value.getExpiryTime()) {
+                data.remove(key);
+                return "none";
+            }
+
+            return "string";
+        }
+
+        if (map.containsKey(key)) {
+            return "hash";
+        }
+
+        return "none";
+    }
 }

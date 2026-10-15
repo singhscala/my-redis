@@ -2,6 +2,7 @@ package com.prachi.command;
 
 import com.prachi.exception.RedisErrorCode;
 import com.prachi.exception.RedisException;
+import com.prachi.model.RedisModel;
 import com.prachi.model.RedisResponse;
 import com.prachi.store.RedisStore;
 
@@ -41,6 +42,7 @@ public class CommandHandler {
                 case "HKEYS" -> handleHKeys(parts);
                 case "HVALS" -> handleHVals(parts);
                 case "HMGET" -> handleHMGet(parts);
+                case "TYPE" -> handleType(parts);
 
                 default -> throw new RedisException(
                         RedisErrorCode.UNKNOWN_COMMAND);
@@ -229,5 +231,12 @@ public class CommandHandler {
         List<String> values = redisStore.hmget(key, fields);
 
         return RedisResponse.array(values);
+    }
+
+    private RedisResponse handleType(String[] parts){
+        if (parts.length != 2) {
+            throw new RedisException(RedisErrorCode.WRONG_NUMBER_OF_ARGUMENTS);
+        }
+        return RedisResponse.bulkString(redisStore.type(parts[1]));
     }
 }

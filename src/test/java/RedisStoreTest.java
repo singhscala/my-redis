@@ -305,4 +305,13 @@ public class RedisStoreTest {
             throw new RuntimeException(e);
         }
     }
+
+    @Test
+    void shouldReturnStringForStringKey() {
+        RedisStore store = new RedisStore();
+
+        store.set("name", "Prachi");
+
+        assertEquals("string", store.type("name"));
+    }
 }
